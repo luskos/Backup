@@ -1,0 +1,37 @@
+#pragma kernel CSMain
+
+RWTexture2D<float4> Result;      // The output to the screen
+Texture2D<float4> CameraSource;  // The input from your 3D Camera
+
+float Time;
+uint Resolution;
+uint PhotonCountPerFrame;
+
+float Hash(uint n) {
+    n = (n << 13U) ^ n;
+    return (1.0 - ((n * (n * n * 15731U + 789221U) + 1376312589U) & 0x7fffffffU) / 1073741824.0);
+}
+
+[numthreads(64, 1, 1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= PhotonCountPerFrame) return;
+
+    // Generate random coordinates based on Photon ID
+    float x = (Hash(id.x + uint(Time * 10.0)) * 0.5 + 0.5) * (float)Resolution;
+    float y = (Hash(id.x + uint(Time * 20.0)) * 0.5 + 0.5) * (float)Resolution;
+    uint2 texCoords = uint2(uint(x), uint(y));
+
+    // 1. Get the color from your 3D FPS Camera at this spot
+    float4 sceneColor = CameraSource[texCoords];
+
+    // 2. LEAP-MORT Math (Bypass logic)
+    // We use the scene brightness to scale the intensity
+    float brightness = (sceneColor.r + sceneColor.g + sceneColor.b);
+    float phase = (x * 0.001 + Time * Time) * 3.14159265;
+    float val = brightness * cos(phase);
+
+    // 3. Final Output: Combined Emulated Light + 3D Scene
+    // The "0.1" controls how strong the holographic effect is
+    Result[texCoords] += float4(val, val, val, 1.0) * 1.0;
+}
